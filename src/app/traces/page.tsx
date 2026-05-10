@@ -72,7 +72,7 @@ export default function TracesPage() {
                   <td className="px-4 py-2 font-mono text-xs">{ep.backend}</td>
                   <td className="px-4 py-2 text-right">{ep.n_events}</td>
                   <td className="px-4 py-2 text-right text-[var(--color-text-muted)]">
-                    {ep.duration_s ? `${ep.duration_s.toFixed(2)}s` : "—"}
+                    {ep.duration_s ? `${ep.duration_s.toFixed(2)}s` : "-"}
                   </td>
                   <td className="px-4 py-2 text-[var(--color-text-muted)]">
                     {new Date(ep.started_at * 1000).toLocaleString()}

@@ -6,7 +6,7 @@ import { DemoBanner } from "@/components/demo-banner"
 export const metadata: Metadata = {
   title: "ghostloop · control",
   description:
-    "Web dashboard for ghostloop — fleet view, mission control, trace timeline, alarm tray.",
+    "Web dashboard for ghostloop: fleet view, mission control, trace timeline, alarm tray.",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -153,7 +153,7 @@ async function handle(
   const demo = demoFor(joined, url)
   if (demo) return demo
 
-  // 3. Truly unknown — 404.
+  // 3. Truly unknown, 404.
   return new NextResponse(
     JSON.stringify({
       error: "no real backend configured AND no demo fixture for this path",

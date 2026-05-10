@@ -39,7 +39,7 @@ export function DemoBanner() {
           </a>{" "}
           backend to see live data.{" "}
           <a href="/settings" className="text-[var(--color-primary)] hover:underline">
-            Setup guide →
+            Setup guide
           </a>
         </span>
       </div>

@@ -1,4 +1,4 @@
-"""ghostloop production dashboard — deployable FastAPI server.
+"""ghostloop production dashboard: deployable FastAPI server.
 
 This is what Railway / Fly / Render runs. The Next.js UI in this repo
 (deployed separately to Vercel) talks to this server's HTTPS URL.
@@ -7,9 +7,9 @@ Configuration (env vars):
 
   GHOSTLOOP_DB                   path to the SQLite store
                                  (default: ./ghostloop.db, but on
-                                  Railway the filesystem is ephemeral
-                                  — point at a persistent volume if
-                                  you need durability)
+                                  Railway the filesystem is ephemeral.
+                                  Point at a persistent volume if
+                                  you need durability.)
   GHOSTLOOP_DASHBOARD_TOKEN      bearer token clients must send. Set
                                  it on Railway; paste the same value
                                  into the UI's Settings page.
@@ -46,7 +46,7 @@ def _origins() -> list[str]:
 db_path = os.environ.get("GHOSTLOOP_DB", "./ghostloop.db")
 store = GhostloopStore(db_path)
 
-# An empty fleet is fine — your runtime registers RobotHandle instances
+# An empty fleet is fine; your runtime registers RobotHandle instances
 # at runtime via `fleet.register(handle)`. For a public demo you can
 # pre-register a couple of MockBackend-backed handles here.
 fleet = FleetRegistry()

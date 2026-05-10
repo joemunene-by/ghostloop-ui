@@ -14,7 +14,7 @@ export default function AlarmsPage() {
       const r = await backend.listAlarms(includeAcked, 100)
       setAlarms(r.alarms)
     } catch {
-      // backend not reachable — handled by overview page
+      // backend not reachable, handled by overview page
     } finally {
       setLoading(false)
     }

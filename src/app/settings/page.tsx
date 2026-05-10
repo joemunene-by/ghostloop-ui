@@ -67,7 +67,7 @@ export default function SettingsPage() {
           </button>
           {saved && (
             <span className="self-center text-sm text-[var(--color-ok)]">
-              {saved === "saved" ? "✓ saved" : "✓ cleared"}
+              {saved === "saved" ? "saved" : "cleared"}
             </span>
           )}
         </div>
@@ -91,7 +91,7 @@ export default function SettingsPage() {
 GHOSTLOOP_BACKEND_URL=https://your-server.example.com
         </pre>
         <p className="text-xs text-[var(--color-text-muted)] mt-2">
-          On Vercel: Project Settings → Environment Variables → Add. Then redeploy.
+          On Vercel: Project Settings, then Environment Variables, then Add. Then redeploy.
         </p>
       </div>
 
@@ -102,30 +102,30 @@ GHOSTLOOP_BACKEND_URL=https://your-server.example.com
         <p className="text-sm text-[var(--color-text-muted)] mb-3">
           The backend is a 30-line FastAPI server wrapping{" "}
           <code>ghostloop.dashboard.create_production_app</code>. Run it
-          anywhere with a public HTTPS URL — Railway, Fly, Render, your own
-          VPS — then paste the URL into your Vercel env vars.
+          anywhere with a public HTTPS URL (Railway, Fly, Render, your own
+          VPS), then paste the URL into your Vercel env vars.
         </p>
         <p className="text-sm text-[var(--color-text-muted)] mb-3">
           A ready-to-deploy version lives in this repo at{" "}
           <code>backend/</code>. On Railway:
         </p>
         <ol className="text-sm text-[var(--color-text-muted)] list-decimal list-inside space-y-1.5 mb-3">
-          <li>New Project → Deploy from GitHub repo → <code>joemunene-by/ghostloop-ui</code></li>
+          <li>New Project, then Deploy from GitHub repo, then <code>joemunene-by/ghostloop-ui</code></li>
           <li>
             <strong className="text-[var(--color-text)]">
-              Settings → Root Directory:
+              Settings, then Root Directory:
             </strong>{" "}
             <code>backend</code>{" "}
             <span className="text-[var(--color-warn)]">
-              ← this is the key step. Default (repo root) tries to build the
-              Next.js app and fails.
+              (this is the key step. Default (repo root) tries to build the
+              Next.js app and fails.)
             </span>
           </li>
           <li>
-            Variables → <code>GHOSTLOOP_DASHBOARD_TOKEN</code> (random string)
+            Variables, then <code>GHOSTLOOP_DASHBOARD_TOKEN</code> (random string)
             and <code>CORS_ORIGINS</code> (your Vercel URL)
           </li>
-          <li>Deploy → Settings → Networking → Generate Domain</li>
+          <li>Deploy, then Settings, then Networking, then Generate Domain</li>
         </ol>
         <p className="text-sm text-[var(--color-text-muted)] mb-3">
           Full guide at{" "}
@@ -140,7 +140,7 @@ GHOSTLOOP_BACKEND_URL=https://your-server.example.com
           . Or roll your own:
         </p>
         <pre className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg p-3 text-xs overflow-x-auto">
-{`# backend/server.py — ~10 lines of glue
+{`# backend/server.py: ~10 lines of glue
 from ghostloop import GhostloopStore
 from ghostloop.fleet import FleetRegistry
 from ghostloop.dashboard import (

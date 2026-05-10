@@ -77,20 +77,20 @@ export default function OverviewPage() {
         <StatCard
           label="Offline / errored"
           value={fleet ? fleet.n_offline + fleet.n_error : 0}
-          hint={fleet ? `${fleet.n_offline} offline · ${fleet.n_error} error` : "—"}
+          hint={fleet ? `${fleet.n_offline} offline · ${fleet.n_error} error` : "-"}
           icon={CircleX}
           tone={fleet && fleet.n_offline + fleet.n_error > 0 ? "error" : "default"}
         />
         <StatCard
           label="Active alarms"
           value={alarms.length}
-          hint={alarms.length === 0 ? "none — clear" : "ack on the Alarms page"}
+          hint={alarms.length === 0 ? "none, clear" : "ack on the Alarms page"}
           icon={AlertTriangle}
           tone={alarms.length > 0 ? "warn" : "ok"}
         />
         <StatCard
           label="Episodes recorded"
-          value={stats?.n_episodes ?? "—"}
+          value={stats?.n_episodes ?? "-"}
           hint={stats ? `${stats.n_runs} runs · ${stats.n_comparisons} comparisons` : "store empty"}
           icon={History}
         />
@@ -117,7 +117,7 @@ export default function OverviewPage() {
                     <td className="py-2 font-mono">{r.name}</td>
                     <td className="py-2"><StatusPill status={r.status} /></td>
                     <td className="py-2 text-[var(--color-text-muted)] font-mono text-xs">
-                      {r.backend ?? "—"}
+                      {r.backend ?? "-"}
                     </td>
                   </tr>
                 ))}
@@ -150,7 +150,7 @@ export default function OverviewPage() {
                 >
                   <SeverityDot severity={a.severity} />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium">{a.kind}{a.robot ? ` — ${a.robot}` : ""}</p>
+                    <p className="font-medium">{a.kind}{a.robot ? `: ${a.robot}` : ""}</p>
                     <p className="text-[var(--color-text-muted)] text-xs">{a.message}</p>
                   </div>
                   <button

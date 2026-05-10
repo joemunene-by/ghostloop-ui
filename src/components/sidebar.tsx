@@ -8,6 +8,7 @@ import {
   Bot,
   History,
   LayoutDashboard,
+  Repeat,
   Settings2,
   Workflow,
 } from "lucide-react"
@@ -29,7 +30,7 @@ export function Sidebar() {
     <aside className="w-60 border-r border-[var(--color-border)] bg-[var(--color-bg-card)] flex flex-col">
       <div className="px-5 py-6 border-b border-[var(--color-border)]">
         <Link href="/" className="text-xl font-bold tracking-tight flex items-center gap-2">
-          <span className="text-[var(--color-primary)]">↻</span>
+          <Repeat className="w-5 h-5 text-[var(--color-primary)]" />
           ghostloop
         </Link>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">control plane</p>

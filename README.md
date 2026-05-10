@@ -32,29 +32,23 @@ cd ghostloop-ui
 npm install
 ```
 
-You need a running ghostloop production-dashboard backend. Easiest path:
+**`backend/`** in this repo is a ready-to-deploy FastAPI server — see [backend/README.md](backend/README.md) for the platform-specific deploy guides (Railway, Fly, Render).
 
-```python
-# server.py (in any project that has ghostloop installed)
-from ghostloop import GhostloopStore
-from ghostloop.fleet import FleetRegistry
-from ghostloop.dashboard import create_production_app
-
-store = GhostloopStore("./ghostloop.db")
-fleet = FleetRegistry()
-app, alarms = create_production_app(store=store, fleet=fleet)
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-```
+Local dev, in two terminals:
 
 ```bash
-# Then start the UI:
+# Terminal A — backend
+cd backend
+pip install -r requirements.txt
+uvicorn server:app --host 0.0.0.0 --port 8000
+
+# Terminal B — UI
 GHOSTLOOP_BACKEND_URL=http://localhost:8000 npm run dev
 ```
 
 Open http://localhost:3000.
+
+> 💡 **Demo mode**: if `GHOSTLOOP_BACKEND_URL` is unset (or unreachable), `/api/backend/[...path]/route.ts` serves fixtures so the deployed Vercel app is interactive without any backend. A "Demo mode" banner explains the swap path.
 
 ## Auth
 

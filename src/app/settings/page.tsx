@@ -105,34 +105,63 @@ GHOSTLOOP_BACKEND_URL=https://your-server.example.com
           anywhere with a public HTTPS URL — Railway, Fly, Render, your own
           VPS — then paste the URL into your Vercel env vars.
         </p>
+        <p className="text-sm text-[var(--color-text-muted)] mb-3">
+          A ready-to-deploy version lives in this repo at{" "}
+          <code>backend/</code>. On Railway:
+        </p>
+        <ol className="text-sm text-[var(--color-text-muted)] list-decimal list-inside space-y-1.5 mb-3">
+          <li>New Project → Deploy from GitHub repo → <code>joemunene-by/ghostloop-ui</code></li>
+          <li>
+            <strong className="text-[var(--color-text)]">
+              Settings → Root Directory:
+            </strong>{" "}
+            <code>backend</code>{" "}
+            <span className="text-[var(--color-warn)]">
+              ← this is the key step. Default (repo root) tries to build the
+              Next.js app and fails.
+            </span>
+          </li>
+          <li>
+            Variables → <code>GHOSTLOOP_DASHBOARD_TOKEN</code> (random string)
+            and <code>CORS_ORIGINS</code> (your Vercel URL)
+          </li>
+          <li>Deploy → Settings → Networking → Generate Domain</li>
+        </ol>
+        <p className="text-sm text-[var(--color-text-muted)] mb-3">
+          Full guide at{" "}
+          <a
+            className="text-[var(--color-primary)] hover:underline"
+            href="https://github.com/joemunene-by/ghostloop-ui/blob/main/backend/README.md"
+            target="_blank"
+            rel="noreferrer"
+          >
+            backend/README.md
+          </a>
+          . Or roll your own:
+        </p>
         <pre className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg p-3 text-xs overflow-x-auto">
-{`# server.py
+{`# backend/server.py — ~10 lines of glue
 from ghostloop import GhostloopStore
 from ghostloop.fleet import FleetRegistry
 from ghostloop.dashboard import (
     create_production_app, ProductionConfig, StaticTokenAuth,
 )
 
-store = GhostloopStore("./ghostloop.db")
-fleet = FleetRegistry()  # register your RobotHandle instances here
-
 app, alarms = create_production_app(
-    store=store, fleet=fleet,
+    store=GhostloopStore("./ghostloop.db"),
+    fleet=FleetRegistry(),
     config=ProductionConfig(
         auth=StaticTokenAuth.from_env(),
         cors_origins=["https://your-ui.vercel.app"],
-        rate_limit_rps=120,
     ),
 )
 
-# requirements.txt: ghostloop[dashboard]
+# requirements.txt: ghostloop[dashboard]>=1.0.3
 # run:              uvicorn server:app --host 0.0.0.0 --port $PORT`}
         </pre>
         <p className="text-xs text-[var(--color-text-muted)] mt-3">
-          Cheapest path: Railway free tier or Fly.io. Both expose HTTPS out of
-          the box. Don&apos;t bind to <code>0.0.0.0</code> without auth — set
-          <code className="mx-1">GHOSTLOOP_DASHBOARD_TOKEN</code> on the server
-          and paste the same value into the Bearer token field above.
+          Set <code>GHOSTLOOP_DASHBOARD_TOKEN</code> on the server side and
+          paste the same value into the Bearer token field above.
         </p>
       </div>
     </div>

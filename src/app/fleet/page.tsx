@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Bot, Loader2 } from "lucide-react"
+import { Bot, ExternalLink, Loader2, Plug, Sparkles } from "lucide-react"
 import { backend, type FleetSnapshot, type RobotSnapshot } from "@/lib/backend"
 
 export default function FleetPage() {
@@ -14,7 +14,10 @@ export default function FleetPage() {
     async function poll() {
       try {
         const f = await backend.fleet()
-        if (!cancelled) setFleet(f)
+        if (!cancelled) {
+          setFleet(f)
+          setError(null)
+        }
       } catch (e) {
         if (!cancelled) setError(String(e))
       }
@@ -24,18 +27,8 @@ export default function FleetPage() {
     return () => { cancelled = true; clearInterval(t) }
   }, [])
 
-  if (error) {
-    return (
-      <div className="max-w-2xl">
-        <h1 className="text-3xl font-semibold mb-2">Fleet</h1>
-        <p className="text-[var(--color-text-muted)] mb-3">
-          The backend doesn&apos;t have a fleet attached yet.
-        </p>
-        <pre className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg p-3 text-sm overflow-x-auto">
-          {error}
-        </pre>
-      </div>
-    )
+  if (error && !fleet) {
+    return <EmptyFleet hint="The backend is up, but no fleet has been registered yet." />
   }
 
   if (!fleet) {
@@ -45,6 +38,10 @@ export default function FleetPage() {
         Loading fleet…
       </div>
     )
+  }
+
+  if (fleet.robots.length === 0) {
+    return <EmptyFleet hint="No robots are connected yet. Walk through Connect a robot to get one online." />
   }
 
   return (
@@ -60,13 +57,59 @@ export default function FleetPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {fleet.robots.map((r) => <RobotCard key={r.name} robot={r} />)}
       </div>
+    </div>
+  )
+}
 
-      {fleet.robots.length === 0 && (
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6 text-sm text-[var(--color-text-muted)]">
-          No robots registered. Add some to your <code>FleetRegistry</code>{" "}
-          and they&apos;ll appear here on the next refresh.
+function EmptyFleet({ hint }: { hint: string }) {
+  return (
+    <div className="max-w-3xl space-y-6">
+      <header>
+        <h1 className="text-3xl font-semibold mb-1 flex items-center gap-2">
+          <Bot className="w-7 h-7 text-[var(--color-primary)]" />
+          Fleet
+        </h1>
+        <p className="text-[var(--color-text-muted)]">{hint}</p>
+      </header>
+
+      <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-6 sm:p-8">
+        <h2 className="text-lg font-semibold mb-2">Get a robot showing here</h2>
+        <p className="text-sm text-[var(--color-text-muted)] mb-5 max-w-xl">
+          The fastest path is the live demo: six different robots are
+          waiting in your browser, all pre-wired through the safety pipeline.
+          Or follow the local-setup guide to point this UI at your own backend.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/connect"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--color-primary)] text-black font-medium text-sm hover:opacity-90"
+          >
+            <Plug className="w-4 h-4" />
+            Connect a robot
+          </Link>
+          <a
+            href="https://huggingface.co/spaces/Ghostgim/ghostloop-demo"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--color-border)] text-sm hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+          >
+            <Sparkles className="w-4 h-4" />
+            Try the live demo
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
         </div>
-      )}
+      </div>
+
+      <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5">
+        <h3 className="text-sm font-medium mb-2">What shows up on this page?</h3>
+        <p className="text-sm text-[var(--color-text-muted)]">
+          Every robot registered with the backend&apos;s{" "}
+          <code>FleetRegistry</code> appears as a card. Cards show live
+          status (idle, busy, offline, error), labels, backend type, and
+          link to a per-robot detail page with primitives, current pose,
+          and recent traces.
+        </p>
+      </div>
     </div>
   )
 }

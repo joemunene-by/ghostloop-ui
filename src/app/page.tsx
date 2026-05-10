@@ -1,14 +1,19 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import {
   Activity,
   AlertTriangle,
   Bot,
   CircleCheck,
   CircleX,
+  ExternalLink,
   History,
   Loader2,
+  Plug,
+  Shield,
+  Sparkles,
 } from "lucide-react"
 import { backend, type FleetSnapshot, type Alarm, type StoreStats } from "@/lib/backend"
 import { StatCard } from "@/components/stat-card"
@@ -57,6 +62,8 @@ export default function OverviewPage() {
     return <BackendUnreachable />
   }
 
+  const emptyFleet = !fleet || fleet.n_total === 0
+
   return (
     <div className="max-w-6xl space-y-8">
       <header>
@@ -66,6 +73,8 @@ export default function OverviewPage() {
           Refreshes every 5 seconds.
         </p>
       </header>
+
+      {emptyFleet && <WelcomeHero />}
 
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
@@ -165,6 +174,84 @@ export default function OverviewPage() {
           )}
         </div>
       </section>
+    </div>
+  )
+}
+
+function WelcomeHero() {
+  return (
+    <section className="bg-gradient-to-br from-[var(--color-primary-soft)] to-[var(--color-bg-card)] border border-[var(--color-primary)]/30 rounded-2xl p-6 sm:p-8">
+      <div className="flex items-start gap-3 mb-3">
+        <Sparkles className="w-5 h-5 text-[var(--color-primary)] mt-1 shrink-0" />
+        <div>
+          <h2 className="text-xl font-semibold mb-1">
+            Welcome to ghostloop
+          </h2>
+          <p className="text-sm text-[var(--color-text-muted)] max-w-2xl">
+            Drive any robot through a fail-closed safety pipeline.
+            Geofencing, force caps, rate limits, human-in-the-loop:
+            baked in. No code required to try it.
+          </p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
+        <FeatureChip
+          icon={Bot}
+          title="6 robot types"
+          desc="Arms, quadrupeds, drones, mobile bases, humanoids."
+        />
+        <FeatureChip
+          icon={Shield}
+          title="Fail-closed safety"
+          desc="Every command goes through 5 safety gates before reaching the robot."
+        />
+        <FeatureChip
+          icon={Activity}
+          title="Live observability"
+          desc="Traces, alarms, metrics, episode replay, all auto-recorded."
+        />
+      </div>
+      <div className="flex flex-wrap gap-2 mt-6">
+        <Link
+          href="/connect"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--color-primary)] text-black font-medium text-sm hover:opacity-90"
+        >
+          <Plug className="w-4 h-4" />
+          Connect a robot
+        </Link>
+        <a
+          href="https://huggingface.co/spaces/Ghostgim/ghostloop-demo"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--color-border)] text-sm hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+        >
+          <Sparkles className="w-4 h-4" />
+          Try the live demo
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      </div>
+    </section>
+  )
+}
+
+function FeatureChip({
+  icon: Icon,
+  title,
+  desc,
+}: {
+  icon: typeof Bot
+  title: string
+  desc: string
+}) {
+  return (
+    <div className="bg-[var(--color-bg)]/60 border border-[var(--color-border)] rounded-lg p-3">
+      <div className="flex items-center gap-2 mb-1">
+        <Icon className="w-3.5 h-3.5 text-[var(--color-primary)]" />
+        <p className="text-sm font-medium">{title}</p>
+      </div>
+      <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+        {desc}
+      </p>
     </div>
   )
 }

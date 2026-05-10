@@ -6,16 +6,27 @@ import {
   Activity,
   AlertTriangle,
   Bot,
+  ExternalLink,
   History,
   LayoutDashboard,
+  Plug,
   Repeat,
   Settings2,
+  Sparkles,
   Workflow,
 } from "lucide-react"
 import { clsx } from "clsx"
 
-const NAV = [
+type NavItem = {
+  href: string
+  label: string
+  icon: typeof LayoutDashboard
+  accent?: boolean
+}
+
+const NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
+  { href: "/connect", label: "Connect a robot", icon: Plug, accent: true },
   { href: "/fleet", label: "Fleet", icon: Bot },
   { href: "/missions", label: "Missions", icon: Workflow },
   { href: "/traces", label: "Traces", icon: History },
@@ -23,6 +34,8 @@ const NAV = [
   { href: "/metrics", label: "Metrics", icon: Activity },
   { href: "/settings", label: "Settings", icon: Settings2 },
 ]
+
+const HF_DEMO_URL = "https://huggingface.co/spaces/Ghostgim/ghostloop-demo"
 
 export function Sidebar() {
   const path = usePathname()
@@ -36,7 +49,7 @@ export function Sidebar() {
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">control plane</p>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {NAV.map(({ href, label, icon: Icon, accent }) => {
           const active = href === "/" ? path === "/" : path.startsWith(href)
           return (
             <Link
@@ -46,7 +59,9 @@ export function Sidebar() {
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                 active
                   ? "bg-[var(--color-primary-soft)] text-[var(--color-primary)]"
-                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-border)] hover:text-[var(--color-text)]",
+                  : accent
+                    ? "text-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]"
+                    : "text-[var(--color-text-muted)] hover:bg-[var(--color-border)] hover:text-[var(--color-text)]",
               )}
             >
               <Icon className="w-4 h-4" />
@@ -54,6 +69,16 @@ export function Sidebar() {
             </Link>
           )
         })}
+        <a
+          href={HF_DEMO_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-border)] hover:text-[var(--color-text)] transition-colors mt-3 border-t border-[var(--color-border)] pt-4"
+        >
+          <Sparkles className="w-4 h-4" />
+          Live demo
+          <ExternalLink className="w-3 h-3 ml-auto" />
+        </a>
       </nav>
       <div className="px-3 py-4 border-t border-[var(--color-border)] text-xs text-[var(--color-text-muted)]">
         <a

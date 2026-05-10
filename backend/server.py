@@ -10,15 +10,20 @@ Configuration (env vars):
                                   Railway the filesystem is ephemeral.
                                   Point at a persistent volume if
                                   you need durability.)
-  GHOSTLOOP_DASHBOARD_TOKEN      bearer token clients must send. Set
-                                 it on Railway; paste the same value
-                                 into the UI's Settings page.
-                                 Unset = open (NOT recommended for any
-                                 non-loopback deployment).
+  GHOSTLOOP_DASHBOARD_TOKEN      bearer token clients must send.
+                                 Optional. When set, the UI must paste
+                                 the same value into its Settings page.
+                                 Unset = open (every request goes
+                                 through, no Authorization header
+                                 needed). Public-demo deployments
+                                 typically leave it unset and rely on
+                                 the rate limiter to cap abuse.
   CORS_ORIGINS                   comma-separated list of UI origins
                                  allowed to call the API. e.g.
                                  https://ghostloop-ui.vercel.app,
                                  http://localhost:3000
+                                 Defaults to '*' (any origin) when
+                                 unset, suitable for a public demo.
 
 Run:
 
@@ -39,8 +44,14 @@ from ghostloop.fleet import FleetRegistry
 
 
 def _origins() -> list[str]:
-    raw = os.environ.get("CORS_ORIGINS", "")
+    raw = os.environ.get("CORS_ORIGINS", "*")
     return [o.strip() for o in raw.split(",") if o.strip()]
+
+
+def _auth() -> StaticTokenAuth | None:
+    if os.environ.get("GHOSTLOOP_DASHBOARD_TOKEN"):
+        return StaticTokenAuth.from_env()
+    return None
 
 
 db_path = os.environ.get("GHOSTLOOP_DB", "./ghostloop.db")
@@ -53,7 +64,7 @@ fleet = FleetRegistry()
 
 config = ProductionConfig(
     title="ghostloop dashboard",
-    auth=StaticTokenAuth.from_env(),  # reads GHOSTLOOP_DASHBOARD_TOKEN
+    auth=_auth(),
     cors_origins=_origins(),
     rate_limit_rps=int(os.environ.get("RATE_LIMIT_RPS", "120")),
     rate_limit_window_s=float(os.environ.get("RATE_LIMIT_WINDOW_S", "60")),

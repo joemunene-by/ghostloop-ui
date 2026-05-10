@@ -83,12 +83,57 @@ export default function SettingsPage() {
           Backend URL
         </h2>
         <p className="text-sm text-[var(--color-text-muted)] mb-2">
-          Configured via the <code>GHOSTLOOP_BACKEND_URL</code> env var when the UI was started.
-          Set it in <code>.env.local</code> or your deployment platform and restart.
+          Set <code>GHOSTLOOP_BACKEND_URL</code> to a deployed ghostloop FastAPI server.
+          When unset, this UI shows demo fixtures so the Vercel deploy stays
+          interactive without a backend.
         </p>
         <pre className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg p-3 text-xs">
-GHOSTLOOP_BACKEND_URL=http://localhost:8000
+GHOSTLOOP_BACKEND_URL=https://your-server.example.com
         </pre>
+        <p className="text-xs text-[var(--color-text-muted)] mt-2">
+          On Vercel: Project Settings → Environment Variables → Add. Then redeploy.
+        </p>
+      </div>
+
+      <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">
+          Deploy the backend
+        </h2>
+        <p className="text-sm text-[var(--color-text-muted)] mb-3">
+          The backend is a 30-line FastAPI server wrapping{" "}
+          <code>ghostloop.dashboard.create_production_app</code>. Run it
+          anywhere with a public HTTPS URL — Railway, Fly, Render, your own
+          VPS — then paste the URL into your Vercel env vars.
+        </p>
+        <pre className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg p-3 text-xs overflow-x-auto">
+{`# server.py
+from ghostloop import GhostloopStore
+from ghostloop.fleet import FleetRegistry
+from ghostloop.dashboard import (
+    create_production_app, ProductionConfig, StaticTokenAuth,
+)
+
+store = GhostloopStore("./ghostloop.db")
+fleet = FleetRegistry()  # register your RobotHandle instances here
+
+app, alarms = create_production_app(
+    store=store, fleet=fleet,
+    config=ProductionConfig(
+        auth=StaticTokenAuth.from_env(),
+        cors_origins=["https://your-ui.vercel.app"],
+        rate_limit_rps=120,
+    ),
+)
+
+# requirements.txt: ghostloop[dashboard]
+# run:              uvicorn server:app --host 0.0.0.0 --port $PORT`}
+        </pre>
+        <p className="text-xs text-[var(--color-text-muted)] mt-3">
+          Cheapest path: Railway free tier or Fly.io. Both expose HTTPS out of
+          the box. Don&apos;t bind to <code>0.0.0.0</code> without auth — set
+          <code className="mx-1">GHOSTLOOP_DASHBOARD_TOKEN</code> on the server
+          and paste the same value into the Bearer token field above.
+        </p>
       </div>
     </div>
   )

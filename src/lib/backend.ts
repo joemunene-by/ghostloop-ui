@@ -1,13 +1,32 @@
 /**
  * Thin client over the ghostloop production-dashboard FastAPI backend.
  *
- * The backend lives at the URL configured via GHOSTLOOP_BACKEND_URL env
- * var (proxied through /api/backend/* via next.config.ts rewrites). All
- * fetches go through ``backendFetch`` which automatically attaches the
- * Authorization header if a bearer token is present in localStorage.
+ * All requests flow through the Next.js route at
+ * `/api/backend/[...path]/route.ts`, which proxies to a real backend
+ * when GHOSTLOOP_BACKEND_URL is set, OR returns demo fixtures so the
+ * deployed Vercel app is interactive without a configured backend.
+ * The route flags demo responses with an `X-Ghostloop-Demo` header;
+ * `isDemoMode()` returns true after the most recent fetch sets it.
  */
 
 const BACKEND = "/api/backend"
+
+let lastIsDemo = false
+let demoListeners = new Set<(v: boolean) => void>()
+
+export function isDemoMode(): boolean { return lastIsDemo }
+
+export function onDemoModeChange(cb: (v: boolean) => void): () => void {
+  demoListeners.add(cb)
+  cb(lastIsDemo)
+  return () => { demoListeners.delete(cb) }
+}
+
+function setDemo(v: boolean) {
+  if (lastIsDemo === v) return
+  lastIsDemo = v
+  demoListeners.forEach((cb) => { try { cb(v) } catch {} })
+}
 
 export type Health = { ok: boolean; fleet_attached: boolean }
 
@@ -72,6 +91,7 @@ async function backendFetch<T>(
     headers.set("Content-Type", "application/json")
   }
   const res = await fetch(`${BACKEND}${path}`, { ...init, headers })
+  setDemo(res.headers.get("x-ghostloop-demo") === "1")
   if (!res.ok) {
     throw new Error(`${res.status} ${res.statusText}: ${await res.text()}`)
   }
@@ -96,5 +116,8 @@ export const backend = {
       method: "POST",
       headers: who ? { "X-Operator": who } : {},
     }),
-  metrics:       () => fetch(`${BACKEND}/metrics`).then(r => r.text()),
+  metrics:       () => fetch(`${BACKEND}/metrics`).then((r) => {
+    setDemo(r.headers.get("x-ghostloop-demo") === "1")
+    return r.text()
+  }),
 }

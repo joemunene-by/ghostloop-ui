@@ -182,7 +182,7 @@ function FAQ() {
         </FAQItem>
         <FAQItem q="Do I need to know Python?">
           For path 1, no. Python is only required for paths 2 and 3 because
-          ghostloop itself is a Python library. If you're starting from
+          ghostloop itself is a Python library. If you&apos;re starting from
           zero, the live demo is enough to learn what the runtime does.
         </FAQItem>
         <FAQItem q="What kinds of robots does ghostloop support?">

@@ -28,6 +28,21 @@ export default function ConnectPage() {
         </p>
       </header>
 
+      <figure className="rounded-xl overflow-hidden border border-[var(--color-border)] bg-black shadow-lg">
+        <video
+          className="w-full block"
+          controls
+          playsInline
+          preload="metadata"
+          poster="/connect-poster.png"
+          src="/ghostloop-connect.mp4"
+        />
+        <figcaption className="px-4 py-2.5 text-xs text-[var(--color-text-muted)] border-t border-[var(--color-border)] flex items-center gap-2">
+          <Terminal className="w-3.5 h-3.5 text-[var(--color-primary)]" />
+          Watch: connect any robot to ghostloop in 4 steps (80s)
+        </figcaption>
+      </figure>
+
       <PathOne />
       <PathTwo />
       <PathThree />

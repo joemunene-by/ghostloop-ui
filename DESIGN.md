@@ -1,73 +1,99 @@
 # ghostloop-ui design tokens
 
-Dark, monochrome control surface. Every value used in the UI comes from this list; add a token here before using a new value anywhere.
-All tokens live as CSS variables in `src/app/globals.css`.
+The dashboard reads like a flight recorder: pale instrument paper, black ink, a time axis on every screen that has time in it. Structure comes from type, hairline rules and space. There are no boxed panels, no stat tiles and no sidebar.
+
+Every value used in the UI comes from this file. Add a token here before using a new value anywhere. All tokens are CSS variables in `src/app/globals.css`, defined once for light and once for dark.
+
+## Theme
+
+Light is the default. Dark follows `prefers-color-scheme` until the person picks one with the header toggle; the choice is stored in `localStorage` under `ghostloop_theme` (reads and writes wrapped in try/catch) and applied as `data-theme` on `<html>` before first paint.
 
 ## Colour
 
-Neutrals are tinted slightly cool. Nothing is pure black or pure white.
+Neutrals are tinted cool. Nothing is pure black or pure white. Monochrome plus one alarm colour.
 
-| Token | Hex | Use |
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `paper` | `#EDEEEB` | `#0B0C0D` | Page |
+| `sheet` | `#E3E4E1` | `#161719` | Inputs, code, row hover, pressed |
+| `ink` | `#111214` | `#E8E9E6` | Text, primary button, busy fill |
+| `ink-2` | `#46494E` | `#A9ACAF` | Secondary text |
+| `ink-3` | `#62656A` | `#8B8E92` | Column heads, axis, units, metadata |
+| `rule` | `#C8CAC6` | `#2B2D30` | Hairlines (1 px) |
+| `rule-strong` | `#A3A6A2` | `#46494D` | Input edges, axis ticks, hatch lines |
+| `idle` | `#7C7F83` | `#76797D` | Idle fill on the timeline |
+| `alarm` | `#C21F18` | `#FF5B4F` | Error state and Critical alarms only, always next to the word |
+
+Contrast ratios (WCAG 2 formula):
+
+| Pair | Light | Dark |
 |---|---|---|
-| `bg` | `#0E0F12` | Page background |
-| `surface` | `#15161A` | Sidebar, panels, tables |
-| `raised` | `#1C1E23` | Inputs, secondary buttons, row hover, code blocks |
-| `active` | `#24262C` | Active nav item, pressed state |
-| `line` | `#2C2F36` | Hairline dividers and panel edges |
-| `line-strong` | `#3D4048` | Input borders, focus-free control edges |
-| `text` | `#ECEDF0` | Primary text, primary button fill |
-| `text-muted` | `#A4A8B1` | Secondary text |
-| `text-faint` | `#868A94` | Labels, metadata, units (only on `bg` and `surface`) |
-| `critical` | `#E5655F` | Critical alarms and errored robots only, always with a word |
+| `ink` on `paper` | 16.09 | 16.06 |
+| `ink-2` on `paper` | 7.76 | 8.58 |
+| `ink-3` on `paper` | 5.02 | 5.95 |
+| `ink-3` on `sheet` | 4.58 | 5.45 |
+| `alarm` on `paper` | 5.15 | 6.40 |
+| `idle` fill on `paper` | 3.45 | 4.48 |
+| `idle` fill against `ink` fill | 4.66 | 3.59 |
 
-Contrast against `surface`: text 15.4, muted 7.6, faint 5.1, critical 5.5. Primary button (`bg` on `text`) 16.4.
+## Robot state
 
-Severity and status are words first. Critical uses `critical` and bold; warning uses `text` and bold; info uses `text-muted` regular. Robot status: error is `critical`, busy is `text` semibold, idle is `text-muted`, offline is `text-faint`.
+State is a word first. On the timeline each state also has its own fill, so the strip still reads in greyscale print:
+
+| State | Word style | Strip fill |
+|---|---|---|
+| Busy | `ink`, 600 | Solid `ink` |
+| Idle | `ink-2`, 400 | Solid `idle` |
+| Offline | `ink-3`, 400 | 45 degree hatch, `rule-strong` lines 1 px every 4 px on `paper` |
+| Error | `alarm`, 600 | Solid `alarm` |
+| Not recorded | none | Dotted `rule` baseline only |
+
+Alarm markers sit on the strip at their raise time: a 2 px tall-stroke tick that rises 4 px above the strip, `alarm` for Critical, `ink` for Warning, `ink-3` for Info.
 
 ## Type
 
-IBM Plex Sans for interface text, IBM Plex Mono for robot names, IDs, metric names and code. Numbers use tabular figures (`font-variant-numeric: tabular-nums`) and sit right-aligned in tables.
+Two families. Schibsted Grotesk for headings and interface text. JetBrains Mono for robot names, alarm codes, IDs, numbers and timestamps. Numbers use tabular figures and sit right-aligned in tables.
 
-| Token | Size / line height | Weight | Use |
-|---|---|---|---|
-| `display` | 28 / 32, -0.01em | 600 | Large stat values |
-| `title` | 22 / 28, -0.01em | 600 | Page title |
-| `heading` | 16 / 24 | 600 | Section heading |
-| `body` | 14 / 20 | 400 | Default text |
-| `small` | 13 / 18 | 400 | Secondary lines, table cells |
-| `label` | 11 / 16, 0.06em, uppercase | 600 | Column headers, stat labels |
-| `mono` | 13 / 20 (12 / 18 in code blocks) | 400 | Code, IDs |
+| Token | Size / line height | Tracking | Weight | Use |
+|---|---|---|---|---|
+| `display` | 44 / 48 (30 / 34 under 640) | -0.025em | 600 | Overview status sentence |
+| `title` | 30 / 36 (26 / 32 under 640) | -0.02em | 600 | Page title |
+| `heading` | 17 / 24 | -0.01em | 600 | Section heading |
+| `body` | 15 / 22 | 0 | 400 | Default text |
+| `small` | 13 / 18 | 0 | 400 | Secondary lines, column heads |
+| `mono` | 13 / 20 | 0 | 400 / 500 | Names, codes, values |
+| `mono-sm` | 12 / 16 | 0.01em | 400 | Axis ticks, time gutter on phones |
+
+Column heads are `small` in `ink-3`, sentence case. No tiny uppercase labels.
 
 ## Spacing
 
-4 px scale only: 4, 8, 12, 16, 24, 32, 48, 64. Page gutter 32 desktop, 16 phone. Space inside a group is 8-12, between groups 24-32.
+4 px scale only: 4, 8, 12, 16, 24, 32, 48, 64. Page gutter 40 at 1440, 24 at tablet, 16 on phones. Space inside a group 8-12, between sections 48-64.
 
 ## Radius
 
 | Token | Value | Use |
 |---|---|---|
-| `r-sm` | 4 | Inline code, keyboard hints |
-| `r-md` | 8 | Buttons, inputs, nav items, code blocks |
-| `r-lg` | 12 | Panels |
+| `r` | 3 | Buttons, inputs, code blocks |
 
-Anything inset in a panel with 4 px padding uses 8 (12 minus 4).
+Strips, markers and rules are square.
 
 ## Elevation
 
-Depth comes from the surface steps above. One shadow, only for things that float above the page (the phone navigation sheet):
-`0 1px 2px rgba(0,0,0,0.5), 0 8px 16px rgba(0,0,0,0.35)`.
+Flat. One shadow, only for things that float: the phone navigation sheet and the timeline readout.
+`0 1px 2px rgba(17,18,20,0.18), 0 6px 16px rgba(17,18,20,0.14)` (dark: alpha 0.6 and 0.5 on black).
 
 ## Controls
 
 | Control | Height | Notes |
 |---|---|---|
-| Button | 40 | Horizontal padding 16. Primary: `text` fill, `bg` label. Secondary: `raised` fill, `text` label. |
-| Input | 40 | `raised` fill, `line-strong` border, focus border `text-muted` |
-| Nav item | 36 desktop, 44 phone | Active: `active` fill, `text` label |
-| Table row | 44 | Hover: `raised` |
+| Button | 40 (36 for row actions at 768 and up) | Padding 16. Primary: `ink` fill, `paper` label. Secondary: `sheet` fill, `ink` label. |
+| Input | 40 | `sheet` fill, `rule-strong` border, focus border `ink` |
+| Top bar | 56 | Links are text; active link is `ink` with a 2 px `ink` underline on the bar edge |
+| Table row | 44 min | Hairline `rule` between rows, hover `sheet` |
 
-Press feedback: 1 px downward translate on `:active`, 120 ms. No fades, no glows, no looping animation; respect `prefers-reduced-motion`.
+Press feedback: 1 px downward translate on `:active`, 120 ms. No fades, glows, gradients (hatching only), status dots, pills or looping animation. Respect `prefers-reduced-motion`.
 
 ## Icons
 
-lucide-react only, 16 px, stroke 1.75, coloured `text-faint` or `text-muted`. Icons only where they aid scanning (navigation, copy, external link).
+lucide-react, 16 px, stroke 1.75, only for copy, external link, menu, close and the theme toggle.

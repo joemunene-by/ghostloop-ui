@@ -2,55 +2,50 @@
 
 import Link from "next/link"
 import { ArrowUpRight } from "lucide-react"
-import { CodeBlock, PageHeader } from "@/components/ui"
-
-const HF_DEMO_URL = "https://huggingface.co/spaces/Ghostgim/ghostloop-demo"
+import { HF_DEMO_URL } from "@/components/topbar"
+import { Chapter, CodeBlock, PageHeader } from "@/components/ui"
 
 const CONCEPTS = [
   { term: "Step", body: "One robot action, for example goto(x, y) or pick(object). Every Step runs through the safety pipeline." },
   { term: "Depends on", body: "Step B only starts after Step A finishes successfully." },
-  { term: "Required", body: "If a required Step fails, the Mission aborts. Optional Steps log the failure and continue." },
+  { term: "Required", body: "If a required Step fails, the Mission aborts. Optional Steps log the failure and carry on." },
 ]
 
 export default function MissionsPage() {
   return (
-    <div className="max-w-3xl space-y-10">
+    <div className="space-y-12 sm:space-y-16">
       <PageHeader
         title="Missions"
-        description={'Chain steps into a recipe the robot follows, like "go to the kitchen, pick up the cup, bring it back".'}
+        description={'Chain Steps into a recipe the robot follows, like "go to the kitchen, pick up the cup, bring it back".'}
       />
 
-      <section>
-        <h2 className="text-heading font-semibold">What a Mission is</h2>
-        <p className="mt-2 text-body text-fg-muted">
-          A small graph of Steps. Steps can depend on each other, retry on failure, and be marked
-          required or optional.
+      <Chapter title="What a Mission is">
+        <p className="text-body text-ink-2">
+          A small graph of Steps. Steps can depend on each other, retry on failure, and be marked required or optional.
         </p>
-        <dl className="mt-4 divide-y divide-line border-y border-line">
+        <dl className="mt-4 border-b border-rule">
           {CONCEPTS.map((c) => (
-            <div key={c.term} className="grid grid-cols-1 gap-1 py-3 sm:grid-cols-[160px_1fr] sm:gap-6">
-              <dt className="text-body font-semibold">{c.term}</dt>
-              <dd className="text-body text-fg-muted">{c.body}</dd>
+            <div key={c.term} className="grid grid-cols-1 gap-1 border-t border-rule py-3 sm:grid-cols-[140px_1fr] sm:gap-6">
+              <dt className="font-mono text-mono font-medium">{c.term}</dt>
+              <dd className="text-body text-ink-2">{c.body}</dd>
             </div>
           ))}
         </dl>
-      </section>
+      </Chapter>
 
-      <section>
-        <h2 className="text-heading font-semibold">Visual Mission builder</h2>
-        <p className="mt-1 text-small text-fg-faint">Planned for v0.2, not built yet</p>
-        <p className="mt-3 text-body text-fg-muted">
-          The builder will let you drag Step tiles onto a canvas and draw dependency arrows. Until it
-          ships there are two ways to drive Missions:
+      <Chapter title="Visual Mission builder" note="Planned for v0.2, not built yet">
+        <p className="text-body text-ink-2">
+          The builder will let you drag Step tiles onto a canvas and draw the dependencies between them. Until it ships
+          there are two ways to drive Missions:
         </p>
-        <ol className="mt-3 list-decimal space-y-2 pl-5 text-body text-fg-muted marker:text-fg-faint">
+        <ol className="mt-3 list-decimal space-y-2 pl-5 text-body text-ink-2 marker:font-mono marker:text-ink-3">
           <li>
-            <span className="font-medium text-fg">The live demo.</span> The HuggingFace Space dispatches
-            primitives one at a time and shows the trace, which is close to a single-Step Mission.
+            <span className="font-medium text-ink">The live demo.</span> The Hugging Face Space dispatches primitives one
+            at a time and shows the trace, which is close to a single-Step Mission.
           </li>
           <li>
-            <span className="font-medium text-fg">The Python API.</span> Build and submit Missions from code,
-            as in the example below.
+            <span className="font-medium text-ink">The Python API.</span> Build and submit Missions from code, as in the
+            example below.
           </li>
         </ol>
         <div className="mt-6 flex flex-wrap gap-2">
@@ -59,15 +54,13 @@ export default function MissionsPage() {
           </Link>
           <a href={HF_DEMO_URL} target="_blank" rel="noreferrer" className="btn btn-secondary">
             Open the live demo
-            <ArrowUpRight className="h-4 w-4 text-fg-faint" strokeWidth={1.75} />
+            <ArrowUpRight className="h-4 w-4 text-ink-3" strokeWidth={1.75} />
           </a>
         </div>
-      </section>
+      </Chapter>
 
-      <section>
-        <h2 className="text-heading font-semibold">Python API example</h2>
+      <Chapter title="Python API example">
         <CodeBlock
-          className="mt-3"
           code={`from ghostloop.missions import Mission, Step, MissionRunner
 from ghostloop import Intent
 
@@ -83,11 +76,10 @@ mission = Mission(name="deliver", steps=[
 ])
 result = MissionRunner(runtime).run(mission)`}
         />
-        <p className="mt-3 text-small text-fg-muted prose-muted">
-          Submit it to a running backend by POSTing the serialized Mission to{" "}
-          <code>/v1/missions/run</code>.
+        <p className="mt-3 text-small text-ink-2 prose-muted">
+          Submit it to a running backend by POSTing the serialized Mission to <code>/v1/missions/run</code>.
         </p>
-      </section>
+      </Chapter>
     </div>
   )
 }

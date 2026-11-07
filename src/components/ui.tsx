@@ -9,99 +9,111 @@ export function PageHeader({
   title,
   description,
   aside,
+  display = false,
 }: {
-  title: string
+  title: React.ReactNode
   description?: React.ReactNode
   aside?: React.ReactNode
+  display?: boolean
 }) {
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0">
-        <h1 className="text-title font-semibold">{title}</h1>
-        {description && (
-          <p className="mt-1 max-w-[80ch] text-body text-fg-muted">{description}</p>
-        )}
+        <h1 className={display ? "display" : "title"}>{title}</h1>
+        {description && <div className="mt-3 max-w-[68ch] text-body text-ink-2">{description}</div>}
       </div>
       {aside && <div className="shrink-0">{aside}</div>}
     </header>
   )
 }
 
-export function Panel({
+export function Section({
   title,
   aside,
   children,
   className,
-  flush = false,
+  id,
 }: {
-  title?: React.ReactNode
+  title: React.ReactNode
   aside?: React.ReactNode
   children: React.ReactNode
   className?: string
-  flush?: boolean
+  id?: string
 }) {
   return (
-    <section className={clsx("panel min-w-0", className)}>
-      {title && (
-        <div className="flex min-h-12 items-center justify-between gap-3 border-b border-line px-4 py-3">
-          <h2 className="text-heading font-semibold">{title}</h2>
-          {aside}
-        </div>
-      )}
-      <div className={flush ? "" : "p-4"}>{children}</div>
+    <section className={clsx("min-w-0 border-t border-ink", className)} aria-labelledby={id}>
+      <div className="flex min-h-12 flex-wrap items-center justify-between gap-x-6 gap-y-1 py-3">
+        <h2 id={id} className="text-heading font-semibold">
+          {title}
+        </h2>
+        {aside && <div className="text-small text-ink-3">{aside}</div>}
+      </div>
+      {children}
     </section>
   )
 }
 
-export function UpdatedAt({ at }: { at: number | null }) {
+const clockFmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(undefined, { hourCycle: "h23", ...opts })
+
+export function clock(epochSeconds: number, seconds = true): string {
+  return clockFmt({ hour: "2-digit", minute: "2-digit", ...(seconds ? { second: "2-digit" } : {}) }).format(
+    new Date(epochSeconds * 1000),
+  )
+}
+
+export function dateLine(epochMs: number): string {
+  return new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(
+    new Date(epochMs),
+  )
+}
+
+export function UpdatedAt({ at, every }: { at: number | null; every?: string }) {
   if (!at) return null
   return (
-    <p className="text-small text-fg-faint">
-      Updated <span className="tnum">{new Date(at).toLocaleTimeString()}</span>
+    <p className="text-small text-ink-3">
+      Updated <span className="font-mono text-ink-2 tnum">{clock(at / 1000)}</span>
+      {every && <span>, every {every}</span>}
     </p>
   )
 }
 
-const STATUS_STYLE: Record<RobotSnapshot["status"], string> = {
-  error: "text-critical font-semibold",
-  busy: "text-fg font-semibold",
-  idle: "text-fg-muted",
-  offline: "text-fg-faint",
+const STATE_STYLE: Record<RobotSnapshot["status"], string> = {
+  error: "text-alarm font-semibold",
+  busy: "text-ink font-semibold",
+  idle: "text-ink-2",
+  offline: "text-ink-3",
 }
 
-export function RobotStatus({ status }: { status: RobotSnapshot["status"] }) {
-  const label = status.charAt(0).toUpperCase() + status.slice(1)
-  return <span className={clsx("text-small", STATUS_STYLE[status] ?? STATUS_STYLE.offline)}>{label}</span>
+export function stateLabel(status: RobotSnapshot["status"]): string {
+  return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
-const SEVERITY: Record<Alarm["severity"], { label: string; className: string }> = {
-  error: { label: "Critical", className: "text-critical" },
-  warn: { label: "Warning", className: "text-fg" },
-  info: { label: "Info", className: "text-fg-muted" },
+export function StateWord({ status, className }: { status: RobotSnapshot["status"]; className?: string }) {
+  return <span className={clsx(STATE_STYLE[status] ?? STATE_STYLE.offline, className)}>{stateLabel(status)}</span>
+}
+
+export const SEVERITY: Record<Alarm["severity"], { label: string; className: string }> = {
+  error: { label: "Critical", className: "text-alarm font-semibold" },
+  warn: { label: "Warning", className: "text-ink font-semibold" },
+  info: { label: "Info", className: "text-ink-2" },
 }
 
 export function Severity({ severity, muted = false }: { severity: Alarm["severity"]; muted?: boolean }) {
   const s = SEVERITY[severity] ?? SEVERITY.info
-  return (
-    <span
-      className={clsx(
-        "label",
-        muted ? "text-fg-faint" : s.className,
-        severity === "info" && "font-medium",
-      )}
-    >
-      {s.label}
-    </span>
-  )
+  return <span className={clsx(muted ? "text-ink-3" : s.className)}>{s.label}</span>
 }
 
 export function severityCounts(alarms: Alarm[]): string {
   const parts: string[] = []
   const n = (s: Alarm["severity"]) => alarms.filter((a) => a.severity === s).length
-  if (n("error")) parts.push(`${n("error")} critical`)
-  if (n("warn")) parts.push(`${n("warn")} warning`)
-  if (n("info")) parts.push(`${n("info")} info`)
-  return parts.join(" · ")
+  if (n("error")) parts.push(`${n("error")}\u00a0critical`)
+  if (n("warn")) parts.push(`${n("warn")}\u00a0warning`)
+  if (n("info")) parts.push(`${n("info")}\u00a0info`)
+  return parts.join(", ")
+}
+
+export function plural(n: number, one: string, many = `${one}s`): string {
+  return `${n.toLocaleString()}\u00a0${n === 1 ? one : many}`
 }
 
 export function timeAgo(epochSeconds: number, now = Date.now()): string {
@@ -136,13 +148,13 @@ export function CodeBlock({ code, className }: { code: string; className?: strin
   }
   return (
     <div className={clsx("relative min-w-0", className)}>
-      <pre className="overflow-x-auto rounded-md border border-line bg-bg p-3 pr-12 font-mono text-code text-fg">
+      <pre className="overflow-x-auto rounded-r border border-rule bg-sheet py-3 pl-4 pr-12 font-mono text-mono text-ink">
         {code}
       </pre>
       <button
         type="button"
         onClick={copy}
-        className="absolute right-px top-px inline-flex h-9 w-10 items-center justify-center rounded-tr-md bg-bg text-fg-faint transition-colors hover:bg-raised hover:text-fg"
+        className="absolute right-px top-px inline-flex h-10 w-10 items-center justify-center rounded-r text-ink-3 transition-colors hover:text-ink"
         aria-label={copied ? "Copied" : "Copy to clipboard"}
         title={copied ? "Copied" : "Copy"}
       >
@@ -162,19 +174,21 @@ export function Notice({
   action?: React.ReactNode
 }) {
   return (
-    <div className="panel px-4 py-8 sm:px-8">
+    <div className="border-y border-rule py-8">
       <p className="text-heading font-semibold">{title}</p>
-      {children && <div className="mt-1 max-w-[60ch] text-body text-fg-muted prose-muted">{children}</div>}
-      {action && <div className="mt-4 flex flex-wrap gap-2">{action}</div>}
+      {children && <div className="mt-2 max-w-[64ch] text-body text-ink-2 prose-muted">{children}</div>}
+      {action && <div className="mt-6 flex flex-wrap gap-2">{action}</div>}
     </div>
   )
 }
 
 export function SkeletonRows({ rows = 3, className }: { rows?: number; className?: string }) {
   return (
-    <div className={clsx("space-y-3", className)} aria-hidden="true">
+    <div className={clsx("divide-y divide-rule", className)} aria-hidden="true">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="skeleton h-5" style={{ width: `${90 - i * 12}%` }} />
+        <div key={i} className="py-4">
+          <div className="skeleton h-4" style={{ width: `${88 - i * 14}%` }} />
+        </div>
       ))}
     </div>
   )
@@ -182,15 +196,35 @@ export function SkeletonRows({ rows = 3, className }: { rows?: number; className
 
 export function Loading({ label }: { label: string }) {
   return (
-    <div className="space-y-6" role="status" aria-label={label}>
-      <div className="space-y-2">
-        <div className="skeleton h-7 w-40" />
-        <div className="skeleton h-4 w-72 max-w-full" />
+    <div className="space-y-12" role="status" aria-label={label}>
+      <div className="space-y-3">
+        <div className="skeleton h-9 w-72 max-w-full" />
+        <div className="skeleton h-4 w-96 max-w-full" />
       </div>
-      <div className="panel p-4">
+      <div className="border-t border-ink">
         <SkeletonRows rows={4} />
       </div>
       <span className="sr-only">{label}</span>
     </div>
+  )
+}
+
+export function Chapter({
+  title,
+  note,
+  children,
+}: {
+  title: React.ReactNode
+  note?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <section className="grid grid-cols-1 gap-x-10 gap-y-4 border-t border-ink pt-4 lg:grid-cols-12">
+      <div className="lg:col-span-4">
+        <h2 className="text-heading font-semibold">{title}</h2>
+        {note && <p className="mt-1 text-small text-ink-3">{note}</p>}
+      </div>
+      <div className="min-w-0 max-w-[72ch] lg:col-span-8">{children}</div>
+    </section>
   )
 }

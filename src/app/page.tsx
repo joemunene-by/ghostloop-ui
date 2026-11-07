@@ -3,277 +3,300 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowUpRight } from "lucide-react"
-import { clsx } from "clsx"
-import { backend, type Alarm, type FleetSnapshot, type StoreStats } from "@/lib/backend"
 import {
+  backend,
+  isDemoMode,
+  onDemoModeChange,
+  type Alarm,
+  type Episode,
+  type FleetSnapshot,
+  type StoreStats,
+} from "@/lib/backend"
+import { historyFor, observedSince } from "@/lib/history"
+import type { Segment } from "@/lib/timeline"
+import { AlarmLog } from "@/components/alarm-log"
+import { EpisodeChart } from "@/components/episode-chart"
+import { FleetTimeline, Legend } from "@/components/fleet-timeline"
+import { HF_DEMO_URL } from "@/components/topbar"
+import {
+  clock,
   CodeBlock,
+  dateLine,
   PageHeader,
-  Panel,
-  RobotStatus,
-  Severity,
-  SkeletonRows,
-  UpdatedAt,
+  plural,
+  Section,
   severityCounts,
+  SkeletonRows,
   timeAgo,
-  useNow,
 } from "@/components/ui"
-
-const HF_DEMO_URL = "https://huggingface.co/spaces/Ghostgim/ghostloop-demo"
 
 export default function OverviewPage() {
   const [fleet, setFleet] = useState<FleetSnapshot | null>(null)
   const [alarms, setAlarms] = useState<Alarm[]>([])
   const [stats, setStats] = useState<StoreStats | null>(null)
+  const [episodes, setEpisodes] = useState<Episode[]>([])
+  const [history, setHistory] = useState<Record<string, Segment[]>>({})
   const [reachable, setReachable] = useState<boolean | null>(null)
+  const [demo, setDemo] = useState(false)
   const [updatedAt, setUpdatedAt] = useState<number | null>(null)
-  const [acking, setAcking] = useState<Set<string>>(new Set())
-  const now = useNow()
 
-  useEffect(() => {
-    let cancelled = false
-    async function poll() {
-      try {
-        await backend.health()
-        if (cancelled) return
-        setReachable(true)
-        const [f, a, s] = await Promise.all([
-          backend.fleet().catch(() => null),
-          backend.listAlarms(false, 50).catch(() => ({ alarms: [], n: 0 })),
-          backend.storeStats().catch(() => null),
-        ])
-        if (cancelled) return
-        setFleet(f)
-        setAlarms(a.alarms)
-        setStats(s)
-        setUpdatedAt(Date.now())
-      } catch {
-        if (!cancelled) setReachable(false)
-      }
-    }
-    poll()
-    const t = setInterval(poll, 5000)
-    return () => { cancelled = true; clearInterval(t) }
-  }, [])
+  useEffect(() => onDemoModeChange(setDemo), [])
 
-  async function ack(id: string) {
-    setAcking((s) => new Set(s).add(id))
+  async function poll(cancelled: () => boolean = () => false) {
     try {
-      await backend.ackAlarm(id, "operator")
-      setAlarms((list) => list.filter((a) => a.id !== id))
+      await backend.health()
+      if (cancelled()) return
+      setReachable(true)
+      const [f, a, s, e] = await Promise.all([
+        backend.fleet().catch(() => null),
+        backend.listAlarms(true, 100).catch(() => ({ alarms: [] as Alarm[], n: 0 })),
+        backend.storeStats().catch(() => null),
+        backend.listEpisodes(100).catch(() => ({ episodes: [] as Episode[] })),
+      ])
+      if (cancelled()) return
+      const at = Date.now()
+      setFleet(f)
+      setAlarms(a.alarms)
+      setStats(s)
+      setEpisodes(e.episodes)
+      setHistory(f ? historyFor(f.robots, a.alarms, isDemoMode(), at / 1000) : {})
+      setUpdatedAt(at)
     } catch {
-      // the next poll shows the alarm again if the ack did not land
-    } finally {
-      setAcking((s) => {
-        const next = new Set(s)
-        next.delete(id)
-        return next
-      })
+      if (!cancelled()) setReachable(false)
     }
   }
 
+  useEffect(() => {
+    let stopped = false
+    poll(() => stopped)
+    const t = setInterval(() => poll(() => stopped), 5000)
+    return () => {
+      stopped = true
+      clearInterval(t)
+    }
+  }, [])
+
   if (reachable === false) return <BackendUnreachable />
 
-  const loading = reachable === null
-  const emptyFleet = !loading && (!fleet || fleet.n_total === 0)
-  const down = fleet ? fleet.n_offline + fleet.n_error : 0
+  const loading = reachable === null || updatedAt === null
+  const now = updatedAt ?? Date.now()
+  const open = alarms.filter((a) => !a.acked).sort((a, b) => b.raised_at - a.raised_at)
+  const recentAcked = alarms
+    .filter((a) => a.acked && a.raised_at > now / 1000 - 24 * 3600)
+    .sort((a, b) => b.raised_at - a.raised_at)
+  const log = [...open, ...recentAcked]
+  const robots = fleet?.robots ?? []
+
+  if (!loading && robots.length === 0) {
+    return (
+      <div className="space-y-12">
+        <PageHeader display title="No robots connected yet." description={<GetStartedCopy />} />
+        <GetStartedActions />
+      </div>
+    )
+  }
+
+  const attention = robots.filter(
+    (r) =>
+      r.status === "error" ||
+      r.status === "offline" ||
+      open.some((a) => a.robot === r.name && a.severity === "error"),
+  )
+  const since = observedSince(history)
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title="Overview"
-        description="Fleet health, open alarms and recorded episodes from the ghostloop backend. Refreshes every 5 seconds."
-        aside={<UpdatedAt at={updatedAt} />}
-      />
+    <div className="space-y-12 sm:space-y-16">
+      {loading ? (
+        <div className="space-y-4" role="status" aria-label="Loading overview">
+          <div className="skeleton h-4 w-56" />
+          <div className="skeleton h-11 w-[28rem] max-w-full" />
+          <div className="skeleton h-5 w-[36rem] max-w-full" />
+        </div>
+      ) : (
+        <header>
+          <p className="font-mono text-mono-sm text-ink-3 tnum">
+            {dateLine(now)} · as of {clock(now / 1000)}
+            <span className="hidden sm:inline"> · refreshes every 5 s</span>
+          </p>
+          <h1 className="display mt-4">
+            {plural(robots.length, "robot")}.{" "}
+            {attention.length === 0
+              ? "All running normally."
+              : `${attention.length}\u00a0${attention.length === 1 ? "needs" : "need"} attention.`}
+          </h1>
+          <p className="mt-4 max-w-[72ch] text-body text-ink-2">
+            <AttentionSentence robots={attention} />
+            {open.length > 0 ? (
+              <>
+                {plural(open.length, "open alarm")}, {severityCounts(open)}. Latest is{" "}
+                <span className="font-mono text-mono text-ink">{open[0].kind}</span>
+                {open[0].robot ? (
+                  <>
+                    {" "}
+                    on <span className="font-mono text-mono text-ink">{open[0].robot}</span>
+                  </>
+                ) : null}
+                , {timeAgo(open[0].raised_at, now)}.
+              </>
+            ) : (
+              "No open alarms."
+            )}
+          </p>
+        </header>
+      )}
 
-      {emptyFleet && <GetStarted />}
+      <Section id="timeline" title="Fleet, last 30 minutes" aside={<Legend />}>
+        {loading ? (
+          <SkeletonRows rows={3} />
+        ) : (
+          <>
+            <p className="mb-3 text-small text-ink-3">
+              {demo
+                ? "Sample history made up for the demo. Alarm marks and current states are the demo backend's own."
+                : `Recorded by this browser${since ? ` since ${clock(since, false)}` : ""}. The backend keeps no state history, so time before that shows as a dotted line.`}
+            </p>
+            <FleetTimeline robots={robots} history={history} alarms={alarms} now={now} />
+          </>
+        )}
+      </Section>
 
-      <section
-        aria-label="Key figures"
-        className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line lg:grid-cols-4"
-      >
-        <Figure
-          label="Robots"
-          value={fleet?.n_total ?? 0}
-          context={fleet ? `${fleet.n_idle} idle · ${fleet.n_busy} busy` : "No fleet attached"}
-          loading={loading}
-        />
-        <Figure
-          label="Offline or errored"
-          value={down}
-          context={fleet ? `${fleet.n_offline} offline · ${fleet.n_error} error` : "No fleet attached"}
-          critical={down > 0}
-          loading={loading}
-        />
-        <Figure
-          label="Open alarms"
-          value={alarms.length}
-          context={alarms.length ? severityCounts(alarms) : "None open"}
-          critical={alarms.some((a) => a.severity === "error")}
-          loading={loading}
-        />
-        <Figure
-          label="Episodes recorded"
-          value={stats?.n_episodes ?? "-"}
-          context={stats ? `${stats.n_runs} runs · ${stats.n_comparisons} comparisons` : "Store empty"}
-          loading={loading}
-        />
-      </section>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <Panel
-          className="lg:col-span-7"
-          title="Open alarms"
+      <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-10">
+        <Section
+          id="alarm-log"
+          className="lg:col-span-8"
+          title="Alarm log, last 24 hours"
           aside={
-            <Link href="/alarms" className="text-small text-fg-muted hover:text-fg">
-              View all
+            <Link href="/alarms" className="link text-ink-2">
+              All alarms
             </Link>
           }
-          flush
         >
           {loading ? (
-            <SkeletonRows rows={3} className="p-4" />
-          ) : alarms.length === 0 ? (
-            <div className="px-4 py-8">
-              <p className="font-medium">No open alarms</p>
-              <p className="mt-1 text-small text-fg-muted">
-                Safety-gate denials and property violations show up here when they happen.
+            <SkeletonRows rows={3} />
+          ) : log.length === 0 ? (
+            <div className="border-t border-rule py-8">
+              <p className="font-medium">Nothing logged in the last 24 hours.</p>
+              <p className="mt-1 text-small text-ink-2">
+                Safety gate denials and property violations are logged here the moment they happen.
               </p>
             </div>
           ) : (
-            <ul className="divide-y divide-line">
-              {alarms.slice(0, 6).map((a) => (
-                <li key={a.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-start">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                      <Severity severity={a.severity} />
-                      <span className="font-mono text-small text-fg">{a.kind}</span>
-                      {a.robot && <span className="font-mono text-small text-fg-muted">{a.robot}</span>}
-                      <span className="text-small text-fg-faint tnum" title={new Date(a.raised_at * 1000).toLocaleString()}>
-                        {timeAgo(a.raised_at, now)}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-small text-fg-muted">{a.message}</p>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm self-start"
-                    disabled={acking.has(a.id)}
-                    onClick={() => ack(a.id)}
-                  >
-                    {acking.has(a.id) ? "Acknowledging" : "Acknowledge"}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <AlarmLog alarms={log} now={now} onAcked={() => poll()} />
           )}
-        </Panel>
+        </Section>
 
-        <Panel
-          className="lg:col-span-5"
-          title="Fleet"
+        <Section
+          id="recorder"
+          className="lg:col-span-4"
+          title="Recorder"
           aside={
-            <Link href="/fleet" className="text-small text-fg-muted hover:text-fg">
-              View fleet
+            <Link href="/traces" className="link text-ink-2">
+              Traces
             </Link>
           }
-          flush
         >
-          {loading ? (
-            <SkeletonRows rows={3} className="p-4" />
-          ) : fleet?.robots.length ? (
-            <table className="w-full text-small">
-              <thead>
-                <tr className="text-left">
-                  <th className="label px-4 pb-2 pt-3 font-semibold">Robot</th>
-                  <th className="label px-4 pb-2 pt-3 font-semibold">Status</th>
-                  <th className="label hidden px-4 pb-2 pt-3 font-semibold sm:table-cell">Backend</th>
-                </tr>
-              </thead>
-              <tbody>
-                {fleet.robots.map((r) => (
-                  <tr key={r.name} className="border-t border-line">
-                    <td className="h-11 whitespace-nowrap px-4 font-mono text-fg">{r.name}</td>
-                    <td className="h-11 px-4"><RobotStatus status={r.status} /></td>
-                    <td className="hidden h-11 px-4 font-mono text-fg-faint sm:table-cell">{r.backend ?? "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="px-4 py-8 text-small text-fg-muted prose-muted">
-              No fleet attached. Build <code>create_production_app</code> with a populated{" "}
-              <code>FleetRegistry</code> to see robots here.
-            </p>
-          )}
-        </Panel>
+          {loading ? <SkeletonRows rows={4} /> : <Recorder stats={stats} episodes={episodes} nowS={now / 1000} />}
+        </Section>
       </div>
     </div>
   )
 }
 
-function Figure({
-  label,
-  value,
-  context,
-  critical = false,
-  loading = false,
-}: {
-  label: string
-  value: string | number
-  context: string
-  critical?: boolean
-  loading?: boolean
-}) {
+function AttentionSentence({ robots }: { robots: FleetSnapshot["robots"] }) {
+  if (!robots.length) return null
   return (
-    <div className="min-w-0 bg-surface p-4 sm:p-6">
-      <p className="label">{label}</p>
-      {loading ? (
-        <>
-          <div className="skeleton mt-2 h-8 w-12" />
-          <div className="skeleton mt-2 h-4 w-24" />
-        </>
-      ) : (
-        <>
-          <p className={clsx("mt-2 text-display font-semibold tnum", critical && "text-critical")}>{value}</p>
-          <p className="mt-1 truncate text-small text-fg-muted">{context}</p>
-        </>
+    <>
+      {robots.map((r, i) => (
+        <span key={r.name}>
+          <span className="font-mono text-mono text-ink">{r.name}</span>{" "}
+          {r.status === "error" ? "is in error" : r.status === "offline" ? "is offline" : "has a critical alarm"}
+          {i < robots.length - 1 ? ", " : ". "}
+        </span>
+      ))}
+    </>
+  )
+}
+
+function Recorder({ stats, episodes, nowS }: { stats: StoreStats | null; episodes: Episode[]; nowS: number }) {
+  if (!stats && episodes.length === 0) {
+    return (
+      <div className="border-t border-rule py-8">
+        <p className="font-medium">The store is empty.</p>
+        <p className="mt-1 text-small text-ink-2">
+          Episodes run through <code className="code-inline">EpisodeRunner</code> with a store attached show up here.
+        </p>
+      </div>
+    )
+  }
+  const latest = [...episodes].sort((a, b) => b.started_at - a.started_at)[0]
+  const graded = episodes.filter((e) => e.passed !== undefined)
+  const passed = graded.filter((e) => e.passed).length
+  const rows: [string, React.ReactNode][] = [
+    ["Episodes recorded", (stats?.n_episodes ?? episodes.length).toLocaleString()],
+    ["Runs", stats ? stats.n_runs.toLocaleString() : "-"],
+    ["Comparisons", stats ? stats.n_comparisons.toLocaleString() : "-"],
+    ["Passed", graded.length ? `${passed} of ${graded.length}` : "-"],
+    ["Latest episode", latest ? `${clock(latest.started_at, false)}, ${latest.duration_s.toFixed(1)} s` : "-"],
+  ]
+  return (
+    <div>
+      {episodes.length > 0 && (
+        <div className="border-t border-rule pb-2 pt-6">
+          <EpisodeChart episodes={episodes} nowS={nowS} height={64} labelEvery={2} />
+          <p className="text-small text-ink-3">Each bar is an episode, its height the event count. Grey bars failed.</p>
+        </div>
       )}
+      <dl className="mt-4">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex items-baseline justify-between gap-4 border-t border-rule py-3">
+            <dt className="text-[14px] text-ink-2">{k}</dt>
+            <dd className="font-mono text-mono text-ink tnum">{v}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   )
 }
 
-function GetStarted() {
+function GetStartedCopy() {
   return (
-    <section className="panel p-6 sm:p-8">
-      <h2 className="text-heading font-semibold">No robots connected yet</h2>
-      <p className="mt-2 max-w-[64ch] text-body text-fg-muted">
-        ghostloop sends every robot command through five safety gates (geofence, force cap,
-        action smoothing, rate limit, human approval) before it reaches the hardware, and records
-        traces, alarms and metrics as it goes. Arms, quadrupeds, drones, mobile bases and humanoids
-        are supported. Nothing to code to try it.
-      </p>
-      <div className="mt-6 flex flex-wrap gap-2">
-        <Link href="/connect" className="btn btn-primary">
-          Connect a robot
-        </Link>
-        <a href={HF_DEMO_URL} target="_blank" rel="noreferrer" className="btn btn-secondary">
-          Try the live demo
-          <ArrowUpRight className="h-4 w-4 text-fg-faint" strokeWidth={1.75} />
-        </a>
-      </div>
-    </section>
+    <>
+      ghostloop sends every robot command through five safety gates (geofence, force cap, action smoothing, rate
+      limit, human approval) before it reaches the hardware, and records traces, alarms and metrics as it goes. Once a
+      robot is registered, its state over the last 30 minutes shows here.
+    </>
+  )
+}
+
+function GetStartedActions() {
+  return (
+    <div className="flex flex-wrap gap-2 border-t border-ink pt-6">
+      <Link href="/connect" className="btn btn-primary">
+        Connect a robot
+      </Link>
+      <a href={HF_DEMO_URL} target="_blank" rel="noreferrer" className="btn btn-secondary">
+        Try the live demo
+        <ArrowUpRight className="h-4 w-4 text-ink-3" strokeWidth={1.75} />
+      </a>
+    </div>
   )
 }
 
 function BackendUnreachable() {
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-10">
       <PageHeader
-        title="Backend not reachable"
-        description="This dashboard couldn't reach your ghostloop backend. Set GHOSTLOOP_BACKEND_URL in the environment and restart. The page retries every 5 seconds."
+        display
+        title="Can't reach the backend."
+        description={
+          <>
+            This dashboard couldn&apos;t reach your ghostloop backend. Set{" "}
+            <code className="code-inline">GHOSTLOOP_BACKEND_URL</code> and restart. The page tries again every 5
+            seconds.
+          </>
+        }
       />
-      <div className="space-y-2">
-        <p className="label">In your ghostloop project</p>
+      <Section title="In your ghostloop project">
         <CodeBlock
           code={`from ghostloop import GhostloopStore
 from ghostloop.fleet import FleetRegistry
@@ -285,11 +308,10 @@ app, alarms = create_production_app(store=store, fleet=fleet)
 
 # uvicorn server:app --host 0.0.0.0 --port 8000`}
         />
-      </div>
-      <div className="space-y-2">
-        <p className="label">Then start this UI</p>
+      </Section>
+      <Section title="Then start this UI">
         <CodeBlock code="GHOSTLOOP_BACKEND_URL=http://localhost:8000 npm run dev" />
-      </div>
+      </Section>
     </div>
   )
 }

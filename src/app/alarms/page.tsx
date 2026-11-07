@@ -1,119 +1,154 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { AlertTriangle, CircleCheck, Loader2 } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { clsx } from "clsx"
 import { backend, type Alarm } from "@/lib/backend"
+import { Loading, Notice, PageHeader, Severity, timeAgo, useNow } from "@/components/ui"
 
 export default function AlarmsPage() {
   const [alarms, setAlarms] = useState<Alarm[]>([])
   const [includeAcked, setIncludeAcked] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
+  const now = useNow()
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     try {
       const r = await backend.listAlarms(includeAcked, 100)
       setAlarms(r.alarms)
+      setFailed(false)
     } catch {
-      // backend not reachable, handled by overview page
+      setFailed(true)
     } finally {
       setLoading(false)
     }
-  }
+  }, [includeAcked])
 
   useEffect(() => {
     refresh()
     const t = setInterval(refresh, 3000)
     return () => clearInterval(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [includeAcked])
+  }, [refresh])
 
   const active = alarms.filter((a) => !a.acked)
   const acked = alarms.filter((a) => a.acked)
 
-  return (
-    <div className="max-w-6xl space-y-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold mb-1">Alarms</h1>
-          <p className="text-[var(--color-text-muted)]">
-            {active.length} active · {acked.length} acknowledged
-          </p>
-        </div>
-        <label className="text-sm flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={includeAcked}
-            onChange={(e) => setIncludeAcked(e.target.checked)}
-          />
-          Show acknowledged
-        </label>
-      </header>
+  if (loading) return <Loading label="Loading alarms" />
 
-      {loading ? (
-        <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Loading…
-        </div>
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Alarms"
+        description={
+          <span className="tnum">
+            {active.length} open{includeAcked ? ` · ${acked.length} acknowledged` : ""}
+          </span>
+        }
+        aside={<AckedToggle checked={includeAcked} onChange={setIncludeAcked} />}
+      />
+
+      {failed && alarms.length === 0 ? (
+        <Notice title="Couldn't load alarms">
+          The backend didn&apos;t answer. This page retries every 3 seconds; check the Backend status in
+          the sidebar or the Settings page.
+        </Notice>
       ) : alarms.length === 0 ? (
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-8 text-center">
-          <CircleCheck className="w-8 h-8 text-[var(--color-ok)] mx-auto mb-2" />
-          <p className="font-medium">All clear</p>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            No active alarms. Property violations + safety-pipeline denials raise alarms here.
-          </p>
-        </div>
+        <Notice title="No open alarms">
+          Safety-gate denials and property violations raise alarms here. Turn on Show acknowledged to see
+          past ones.
+        </Notice>
       ) : (
-        <div className="space-y-2">
-          {alarms.map((a) => <AlarmRow key={a.id} alarm={a} onAck={refresh} />)}
-        </div>
+        <section className="panel overflow-hidden">
+          <ul className="divide-y divide-line">
+            {alarms.map((a) => (
+              <AlarmRow key={a.id} alarm={a} now={now} onAck={refresh} />
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   )
 }
 
-function AlarmRow({ alarm, onAck }: { alarm: Alarm; onAck: () => void }) {
-  const tone: Record<string, string> = {
-    info: "border-[var(--color-primary)]/40",
-    warn: "border-[var(--color-warn)]/40",
-    error: "border-[var(--color-error)]/40",
-  }
-  const dotTone: Record<string, string> = {
-    info: "bg-[var(--color-primary)]",
-    warn: "bg-[var(--color-warn)]",
-    error: "bg-[var(--color-error)]",
-  }
+function AckedToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div
-      className={`bg-[var(--color-bg-card)] border ${tone[alarm.severity] || tone.info} rounded-xl p-4 flex items-start gap-3`}
-    >
-      <span className={`w-2 h-2 rounded-full mt-2 ${dotTone[alarm.severity] || dotTone.info}`} />
-      <div className="flex-1 min-w-0">
-        <p className="font-medium flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-[var(--color-warn)]" />
-          {alarm.kind}
-          {alarm.robot && (
-            <span className="font-mono text-xs text-[var(--color-text-muted)]">
-              · {alarm.robot}
-            </span>
+    <label className="inline-flex h-10 cursor-pointer select-none items-center gap-3 text-body text-fg-muted">
+      <input
+        type="checkbox"
+        className="peer sr-only"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span
+        aria-hidden="true"
+        className={clsx(
+          "relative h-5 w-9 rounded-full border transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-fg-muted",
+          checked ? "border-fg bg-fg" : "border-line-strong bg-raised",
+        )}
+      >
+        <span
+          className={clsx(
+            "absolute top-[2px] h-3.5 w-3.5 rounded-full transition-transform",
+            checked ? "translate-x-[18px] bg-bg" : "translate-x-[2px] bg-fg-muted",
           )}
-        </p>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">{alarm.message}</p>
-        <p className="text-xs text-[var(--color-text-muted)] mt-1">
-          raised {new Date(alarm.raised_at * 1000).toLocaleString()}
-          {alarm.acked && alarm.acked_by && ` · acked by ${alarm.acked_by}`}
-        </p>
+        />
+      </span>
+      Show acknowledged
+    </label>
+  )
+}
+
+function AlarmRow({ alarm, now, onAck }: { alarm: Alarm; now: number; onAck: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const raised = new Date(alarm.raised_at * 1000)
+
+  async function ack() {
+    setBusy(true)
+    setFailed(false)
+    try {
+      await backend.ackAlarm(alarm.id, "operator")
+      await onAck()
+    } catch {
+      setFailed(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <li className="grid grid-cols-1 gap-3 px-4 py-4 md:grid-cols-[96px_1fr_auto] md:gap-6">
+      <div className="pt-px">
+        <Severity severity={alarm.severity} muted={alarm.acked} />
       </div>
-      {!alarm.acked && (
-        <button
-          className="text-xs px-3 py-1 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
-          onClick={async () => {
-            await backend.ackAlarm(alarm.id, "operator")
-            onAck()
-          }}
-        >
-          Acknowledge
-        </button>
-      )}
-    </div>
+      <div className="min-w-0">
+        <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className={clsx("font-mono text-body", alarm.acked ? "text-fg-muted" : "text-fg")}>
+            {alarm.kind}
+          </span>
+          {alarm.robot && <span className="font-mono text-small text-fg-muted">{alarm.robot}</span>}
+        </p>
+        <p className="mt-1 max-w-[80ch] text-small text-fg-muted">{alarm.message}</p>
+        <p className="mt-2 text-small text-fg-faint tnum">
+          <span title={raised.toLocaleString()}>Raised {timeAgo(alarm.raised_at, now)}</span>
+          <span className="hidden sm:inline"> · {raised.toLocaleString()}</span>
+          {alarm.acked && alarm.acked_by && ` · acknowledged by ${alarm.acked_by}`}
+        </p>
+        {failed && (
+          <p className="mt-2 text-small font-semibold text-critical">
+            Couldn&apos;t acknowledge. Try again.
+          </p>
+        )}
+      </div>
+      <div className="md:text-right">
+        {alarm.acked ? (
+          <span className="text-small text-fg-faint">Acknowledged</span>
+        ) : (
+          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={ack}>
+            {busy ? "Acknowledging" : "Acknowledge"}
+          </button>
+        )}
+      </div>
+    </li>
   )
 }

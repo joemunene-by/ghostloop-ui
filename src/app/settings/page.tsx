@@ -1,147 +1,129 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Settings2 } from "lucide-react"
+import { Chapter, CodeBlock, PageHeader } from "@/components/ui"
+
+const TOKEN_KEY = "ghostloop_token"
 
 export default function SettingsPage() {
   const [token, setToken] = useState("")
-  const [saved, setSaved] = useState<"saved" | "cleared" | null>(null)
+  const [saved, setSaved] = useState<"saved" | "cleared" | "failed" | null>(null)
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setToken(window.localStorage.getItem("ghostloop_token") || "")
-    }
+    try {
+      setToken(window.localStorage.getItem(TOKEN_KEY) || "")
+    } catch {}
   }, [])
 
-  function save() {
-    window.localStorage.setItem("ghostloop_token", token)
-    setSaved("saved")
+  function flash(state: "saved" | "cleared" | "failed") {
+    setSaved(state)
     setTimeout(() => setSaved(null), 2000)
+  }
+
+  function save(e: React.FormEvent) {
+    e.preventDefault()
+    try {
+      window.localStorage.setItem(TOKEN_KEY, token)
+      flash("saved")
+    } catch {
+      flash("failed")
+    }
   }
 
   function clear() {
-    window.localStorage.removeItem("ghostloop_token")
-    setToken("")
-    setSaved("cleared")
-    setTimeout(() => setSaved(null), 2000)
+    try {
+      window.localStorage.removeItem(TOKEN_KEY)
+      setToken("")
+      flash("cleared")
+    } catch {
+      flash("failed")
+    }
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <header>
-        <h1 className="text-3xl font-semibold mb-1 flex items-center gap-2">
-          <Settings2 className="w-6 h-6 text-[var(--color-primary)]" />
-          Settings
-        </h1>
-        <p className="text-[var(--color-text-muted)]">
-          For most visitors there is nothing to set here. The bearer token
-          and backend URL fields below only apply if you are running your
-          own ghostloop backend with auth turned on.
-        </p>
-      </header>
+    <div className="space-y-12 sm:space-y-16">
+      <PageHeader
+        title="Settings"
+        description="Most visitors have nothing to set here. These only apply if you run your own ghostloop backend with auth turned on."
+      />
 
-      <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5 space-y-3">
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
-            Bearer token (optional)
-          </h2>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Only needed if your backend has{" "}
-            <code>GHOSTLOOP_DASHBOARD_TOKEN</code> set. The public demo
-            leaves auth open, so most visitors can ignore this.
-          </p>
-        </div>
-        <label className="block text-sm">
-          <span className="block text-[var(--color-text-muted)] mb-1">
+      <Chapter title="Bearer token" note="Optional">
+        <p className="text-body text-ink-2 prose-muted">
+          Only needed if your backend has <code>GHOSTLOOP_DASHBOARD_TOKEN</code> set. The public
+          demo leaves auth open.
+        </p>
+        <form onSubmit={save} className="mt-4">
+          <label htmlFor="token" className="text-small font-medium text-ink">
             Token
-          </span>
+          </label>
           <input
+            id="token"
             type="password"
+            autoComplete="off"
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            placeholder="paste your bearer token, or leave blank"
-            className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg px-3 py-2 font-mono text-sm focus:outline-none focus:border-[var(--color-primary)]"
+            placeholder="Leave blank if auth is off"
+            className="input mt-2 font-mono"
           />
-        </label>
-        <div className="flex gap-2">
-          <button
-            onClick={save}
-            className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-black font-medium text-sm hover:opacity-90"
-          >
-            Save
-          </button>
-          <button
-            onClick={clear}
-            className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm hover:border-[var(--color-error)] hover:text-[var(--color-error)]"
-          >
-            Clear
-          </button>
-          {saved && (
-            <span className="self-center text-sm text-[var(--color-ok)]">
-              {saved === "saved" ? "saved" : "cleared"}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button type="submit" className="btn btn-primary">
+              Save token
+            </button>
+            <button type="button" onClick={clear} className="btn btn-secondary">
+              Clear
+            </button>
+            <span role="status" className="ml-2 text-small text-ink-2">
+              {saved === "saved" && "Saved"}
+              {saved === "cleared" && "Cleared"}
+              {saved === "failed" && "Your browser blocked local storage, so the token wasn't stored."}
             </span>
-          )}
-        </div>
-        <p className="text-xs text-[var(--color-text-muted)]">
-          Stored in <code>localStorage</code>, never sent to any server but
-          your configured backend. Match this to{" "}
+          </div>
+        </form>
+        <p className="mt-4 text-small text-ink-3 prose-muted">
+          Stored in <code>localStorage</code> and only sent to your configured backend. Match it to{" "}
           <code>StaticTokenAuth.from_env()</code> on the backend side.
         </p>
-      </div>
+      </Chapter>
 
-      <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">
-          Backend URL
-        </h2>
-        <p className="text-sm text-[var(--color-text-muted)] mb-2">
-          Set <code>GHOSTLOOP_BACKEND_URL</code> to a deployed ghostloop FastAPI server.
-          When unset, this UI shows demo fixtures so the Vercel deploy stays
-          interactive without a backend.
+      <Chapter title="Backend URL">
+        <p className="text-body text-ink-2 prose-muted">
+          Set <code>GHOSTLOOP_BACKEND_URL</code> to a deployed ghostloop FastAPI server. When it&apos;s unset,
+          this UI serves demo fixtures so the Vercel deploy stays interactive without a backend.
         </p>
-        <pre className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg p-3 text-xs">
-GHOSTLOOP_BACKEND_URL=https://your-server.example.com
-        </pre>
-        <p className="text-xs text-[var(--color-text-muted)] mt-2">
+        <CodeBlock className="mt-3" code="GHOSTLOOP_BACKEND_URL=https://your-server.example.com" />
+        <p className="mt-2 text-small text-ink-3">
           On Vercel: Project Settings, then Environment Variables, then Add. Then redeploy.
         </p>
-      </div>
+      </Chapter>
 
-      <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">
-          Deploy the backend
-        </h2>
-        <p className="text-sm text-[var(--color-text-muted)] mb-3">
+      <Chapter title="Deploy the backend">
+        <p className="text-body text-ink-2 prose-muted">
           The backend is a 30-line FastAPI server wrapping{" "}
-          <code>ghostloop.dashboard.create_production_app</code>. Run it
-          anywhere with a public HTTPS URL (Railway, Fly, Render, your own
-          VPS), then paste the URL into your Vercel env vars.
+          <code>ghostloop.dashboard.create_production_app</code>. Run it anywhere with a public HTTPS URL
+          (Railway, Fly, Render, your own VPS), then paste the URL into your Vercel env vars. A
+          ready-to-deploy version lives in this repo at <code>backend/</code>. On Railway:
         </p>
-        <p className="text-sm text-[var(--color-text-muted)] mb-3">
-          A ready-to-deploy version lives in this repo at{" "}
-          <code>backend/</code>. On Railway:
-        </p>
-        <ol className="text-sm text-[var(--color-text-muted)] list-decimal list-inside space-y-1.5 mb-3">
-          <li>New Project, then Deploy from GitHub repo, then <code>joemunene-by/ghostloop-ui</code></li>
+        <ol className="mt-3 list-decimal space-y-2 pl-5 text-body text-ink-2 marker:text-ink-3 prose-muted">
           <li>
-            <strong className="text-[var(--color-text)]">
-              Settings, then Root Directory:
-            </strong>{" "}
-            <code>backend</code>{" "}
-            <span className="text-[var(--color-warn)]">
-              (this is the key step. Default (repo root) tries to build the
-              Next.js app and fails.)
+            New Project, then Deploy from GitHub repo, then <code>joemunene-by/ghostloop-ui</code>.
+          </li>
+          <li>
+            <span className="font-semibold text-ink">Settings, then Root Directory: </span>
+            <code>backend</code>.{" "}
+            <span className="font-semibold text-ink">
+              This is the key step. The default (repo root) tries to build the Next.js app and fails.
             </span>
           </li>
           <li>
-            Variables, then <code>GHOSTLOOP_DASHBOARD_TOKEN</code> (random string)
-            and <code>CORS_ORIGINS</code> (your Vercel URL)
+            Variables, then <code>GHOSTLOOP_DASHBOARD_TOKEN</code> (a random string) and{" "}
+            <code>CORS_ORIGINS</code> (your Vercel URL).
           </li>
-          <li>Deploy, then Settings, then Networking, then Generate Domain</li>
+          <li>Deploy, then Settings, then Networking, then Generate Domain.</li>
         </ol>
-        <p className="text-sm text-[var(--color-text-muted)] mb-3">
-          Full guide at{" "}
+        <p className="mt-4 text-body text-ink-2">
+          Full guide in{" "}
           <a
-            className="text-[var(--color-primary)] hover:underline"
+            className="link"
             href="https://github.com/joemunene-by/ghostloop-ui/blob/main/backend/README.md"
             target="_blank"
             rel="noreferrer"
@@ -150,8 +132,9 @@ GHOSTLOOP_BACKEND_URL=https://your-server.example.com
           </a>
           . Or roll your own:
         </p>
-        <pre className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg p-3 text-xs overflow-x-auto">
-{`# backend/server.py: ~10 lines of glue
+        <CodeBlock
+          className="mt-3"
+          code={`# backend/server.py: 10 lines of glue
 from ghostloop import GhostloopStore
 from ghostloop.fleet import FleetRegistry
 from ghostloop.dashboard import (
@@ -169,12 +152,12 @@ app, alarms = create_production_app(
 
 # requirements.txt: ghostloop[dashboard]>=1.0.3
 # run:              uvicorn server:app --host 0.0.0.0 --port $PORT`}
-        </pre>
-        <p className="text-xs text-[var(--color-text-muted)] mt-3">
-          Set <code>GHOSTLOOP_DASHBOARD_TOKEN</code> on the server side and
-          paste the same value into the Bearer token field above.
+        />
+        <p className="mt-3 text-small text-ink-3 prose-muted">
+          Set <code>GHOSTLOOP_DASHBOARD_TOKEN</code> on the server and paste the same value into the
+          Bearer token field above.
         </p>
-      </div>
+      </Chapter>
     </div>
   )
 }

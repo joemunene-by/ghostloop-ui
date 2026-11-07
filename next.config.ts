@@ -2,6 +2,7 @@ import type { NextConfig } from "next"
 
 const config: NextConfig = {
   reactStrictMode: true,
+  devIndicators: false,
   // /api/backend/[...path]/route.ts handles the proxy at runtime.
   // It forwards to GHOSTLOOP_BACKEND_URL if reachable, otherwise
   // falls back to demo fixtures so a Vercel deploy without a

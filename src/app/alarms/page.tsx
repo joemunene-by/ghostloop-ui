@@ -1,119 +1,134 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { AlertTriangle, CircleCheck, Loader2 } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { clsx } from "clsx"
 import { backend, type Alarm } from "@/lib/backend"
+import { AlarmLog, AlarmTrack, trackHours } from "@/components/alarm-log"
+import { Loading, Notice, PageHeader, plural, Section, severityCounts, useNow } from "@/components/ui"
 
 export default function AlarmsPage() {
-  const [alarms, setAlarms] = useState<Alarm[]>([])
+  const [all, setAll] = useState<Alarm[]>([])
   const [includeAcked, setIncludeAcked] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
+  const now = useNow(5000)
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     try {
-      const r = await backend.listAlarms(includeAcked, 100)
-      setAlarms(r.alarms)
+      const r = await backend.listAlarms(true, 100)
+      setAll([...r.alarms].sort((a, b) => b.raised_at - a.raised_at))
+      setFailed(false)
     } catch {
-      // backend not reachable, handled by overview page
+      setFailed(true)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     refresh()
     const t = setInterval(refresh, 3000)
     return () => clearInterval(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [includeAcked])
+  }, [refresh])
 
-  const active = alarms.filter((a) => !a.acked)
-  const acked = alarms.filter((a) => a.acked)
+  const active = all.filter((a) => !a.acked)
+  const acked = all.filter((a) => a.acked)
+  const alarms = includeAcked ? all : active
+  const hours = trackHours(all, now / 1000)
+
+  if (loading) return <Loading label="Loading alarms" />
+
+  const title =
+    active.length === 0
+      ? "No open alarms."
+      : `${plural(active.length, "open alarm")}. ${severityCounts(active).replace(/^./, (c) => c.toUpperCase())}.`
 
   return (
-    <div className="max-w-6xl space-y-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold mb-1">Alarms</h1>
-          <p className="text-[var(--color-text-muted)]">
-            {active.length} active · {acked.length} acknowledged
-          </p>
-        </div>
-        <label className="text-sm flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={includeAcked}
-            onChange={(e) => setIncludeAcked(e.target.checked)}
-          />
-          Show acknowledged
-        </label>
-      </header>
+    <div className="space-y-12">
+      <PageHeader
+        title={title}
+        description="Safety gate denials, missed deadlines and property violations, newest first. Acknowledging records who saw it and when."
+      />
 
-      {loading ? (
-        <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Loading…
+      <Section
+        title={hours === 1 ? "Last hour" : `Last ${hours} hours`}
+        aside={
+          <span className="inline-flex flex-wrap items-center gap-x-4 gap-y-1 text-ink-2">
+            <span className="inline-flex items-center gap-2">
+              <span aria-hidden="true" className="inline-block h-3 w-0.5 bg-alarm" />
+              Critical
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span aria-hidden="true" className="inline-block h-2 w-0.5 bg-ink" />
+              Warning
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span aria-hidden="true" className="inline-block h-1 w-0.5 bg-ink-3" />
+              Info
+            </span>
+          </span>
+        }
+      >
+        <div className="border-t border-rule pt-10">
+          <AlarmTrack alarms={all} nowS={now / 1000} hours={hours} />
         </div>
-      ) : alarms.length === 0 ? (
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-8 text-center">
-          <CircleCheck className="w-8 h-8 text-[var(--color-ok)] mx-auto mb-2" />
-          <p className="font-medium">All clear</p>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            No active alarms. Property violations + safety-pipeline denials raise alarms here.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {alarms.map((a) => <AlarmRow key={a.id} alarm={a} onAck={refresh} />)}
-        </div>
-      )}
+      </Section>
+
+      <Section
+        title="Log"
+        aside={
+          <AckedToggle checked={includeAcked} onChange={setIncludeAcked} count={acked.length} />
+        }
+      >
+        {failed && all.length === 0 ? (
+          <Notice title="Couldn't load alarms">
+            The backend didn&apos;t answer. This page tries again every 3 seconds. Check the backend word in the top bar,
+            or the Settings page.
+          </Notice>
+        ) : alarms.length === 0 ? (
+          <Notice title="Nothing open">
+            Safety gate denials and property violations are logged here. Turn on Show acknowledged to see past ones.
+          </Notice>
+        ) : (
+          <AlarmLog alarms={alarms} now={now} onAcked={refresh} />
+        )}
+      </Section>
     </div>
   )
 }
 
-function AlarmRow({ alarm, onAck }: { alarm: Alarm; onAck: () => void }) {
-  const tone: Record<string, string> = {
-    info: "border-[var(--color-primary)]/40",
-    warn: "border-[var(--color-warn)]/40",
-    error: "border-[var(--color-error)]/40",
-  }
-  const dotTone: Record<string, string> = {
-    info: "bg-[var(--color-primary)]",
-    warn: "bg-[var(--color-warn)]",
-    error: "bg-[var(--color-error)]",
-  }
+function AckedToggle({
+  checked,
+  onChange,
+  count,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  count: number | null
+}) {
   return (
-    <div
-      className={`bg-[var(--color-bg-card)] border ${tone[alarm.severity] || tone.info} rounded-xl p-4 flex items-start gap-3`}
-    >
-      <span className={`w-2 h-2 rounded-full mt-2 ${dotTone[alarm.severity] || dotTone.info}`} />
-      <div className="flex-1 min-w-0">
-        <p className="font-medium flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-[var(--color-warn)]" />
-          {alarm.kind}
-          {alarm.robot && (
-            <span className="font-mono text-xs text-[var(--color-text-muted)]">
-              · {alarm.robot}
-            </span>
-          )}
-        </p>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">{alarm.message}</p>
-        <p className="text-xs text-[var(--color-text-muted)] mt-1">
-          raised {new Date(alarm.raised_at * 1000).toLocaleString()}
-          {alarm.acked && alarm.acked_by && ` · acked by ${alarm.acked_by}`}
-        </p>
-      </div>
-      {!alarm.acked && (
-        <button
-          className="text-xs px-3 py-1 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
-          onClick={async () => {
-            await backend.ackAlarm(alarm.id, "operator")
-            onAck()
-          }}
-        >
-          Acknowledge
-        </button>
-      )}
-    </div>
+    <label className="inline-flex h-10 cursor-pointer select-none items-center gap-3 text-[14px] text-ink-2">
+      <input
+        type="checkbox"
+        className="peer sr-only"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span
+        aria-hidden="true"
+        className={clsx(
+          "inline-flex h-4 w-4 items-center justify-center rounded-r border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink",
+          checked ? "border-ink bg-ink" : "border-rule-strong bg-sheet",
+        )}
+      >
+        {checked && (
+          <svg viewBox="0 0 12 12" className="h-3 w-3 text-paper" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M2.5 6.2 5 8.5l4.5-5" />
+          </svg>
+        )}
+      </span>
+      Show acknowledged
+      {count !== null && <span className="font-mono text-mono-sm text-ink-3 tnum">{count}</span>}
+    </label>
   )
 }

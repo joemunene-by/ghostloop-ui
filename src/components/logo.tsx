@@ -19,7 +19,7 @@ export function GhostMark({ size = 20 }: { size?: number }) {
 
 export function Logo() {
   return (
-    <Link href="/" className="inline-flex items-center gap-2 text-fg" aria-label="ghostloop, overview">
+    <Link href="/" className="inline-flex items-center gap-2 text-ink" aria-label="ghostloop, overview">
       <GhostMark size={18} />
       <span className="text-[17px] leading-6 tracking-[-0.01em]">
         <span className="font-normal">ghost</span>
